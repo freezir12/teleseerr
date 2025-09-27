@@ -15,7 +15,7 @@ Teleserr is a Telegram bot designed to integrate with Jellyseerr, allowing you t
 ```yml
 services:
   teleseerr:
-    image: ghcr.io/mi3lix9/teleseerr
+    image: ghcr.io/freezir12/teleseerr
     container_name: teleseerr
     environment:
       - BOT_TOKEN=botusername@123456789
@@ -36,7 +36,7 @@ docker run -d \
   -e JELLYSEERR_KEY="YOUR KEY" \
   -v /path/to/config:/config \
   --restart unless-stopped \
-  ghcr.io/mi3lix9/teleseerr
+  ghcr.io/freezir/teleseerr
 ```
 
 ## Development Stage
