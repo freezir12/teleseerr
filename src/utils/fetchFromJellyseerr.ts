@@ -49,10 +49,17 @@ export async function fetchFromJellyseerr<T = any>(
   const { method = "GET", params = {}, body } = options;
   const url = new URL(JELLYSEERR_URL + endpoint);
 
+  console.log(`🌐 [fetchFromJellyseerr] Starting ${method} request to: ${endpoint}`);
+  console.log(`🔧 [fetchFromJellyseerr] Base URL: ${JELLYSEERR_URL}`);
+  console.log(`📄 [fetchFromJellyseerr] Query params:`, params);
+  console.log(`📦 [fetchFromJellyseerr] Request body:`, body ? JSON.stringify(body, null, 2) : 'None');
+
   // Append query parameters to the URL
   Object.entries(params).forEach(([key, val]) =>
     url.searchParams.append(key, encodeURIComponent(val))
   );
+
+  console.log(`🎯 [fetchFromJellyseerr] Final URL: ${url.toString()}`);
 
   const fetchOptions: RequestInit = {
     method,
@@ -62,16 +69,66 @@ export async function fetchFromJellyseerr<T = any>(
     },
   };
 
-  if (body) fetchOptions.body = JSON.stringify(body);
+  if (body) {
+    fetchOptions.body = JSON.stringify(body);
+    console.log(`📤 [fetchFromJellyseerr] Serialized body: ${fetchOptions.body}`);
+  }
+
+  console.log(`🚀 [fetchFromJellyseerr] Making request with options:`, {
+    method: fetchOptions.method,
+    headers: { ...fetchOptions.headers, "X-Api-Key": "[REDACTED]" },
+    hasBody: !!fetchOptions.body
+  });
 
   // Make the API request
-  const res = await fetch(url.toString(), fetchOptions);
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), fetchOptions);
+    console.log(`📡 [fetchFromJellyseerr] Response received - Status: ${res.status} ${res.statusText}`);
+    console.log(`📊 [fetchFromJellyseerr] Response headers:`, {
+      'content-type': res.headers.get('content-type'),
+      'content-length': res.headers.get('content-length'),
+      'server': res.headers.get('server')
+    });
+  } catch (error) {
+    console.error(`❌ [fetchFromJellyseerr] Network error:`, error);
+    throw error;
+  }
 
   // Check for HTTP errors
   if (!res.ok) {
-    throw new Error(`Error: ${res.status} ${res.statusText}`);
+    let errorBody: any;
+    try {
+      errorBody = await res.text();
+      console.error(`💥 [fetchFromJellyseerr] Error response body:`, errorBody);
+      // Try to parse as JSON for more detailed error info
+      try {
+        const jsonError = JSON.parse(errorBody);
+        console.error(`🔍 [fetchFromJellyseerr] Parsed error details:`, JSON.stringify(jsonError, null, 2));
+      } catch {
+        console.error(`📝 [fetchFromJellyseerr] Raw error text:`, errorBody);
+      }
+    } catch (bodyError) {
+      console.error(`⚠️ [fetchFromJellyseerr] Could not read error response body:`, bodyError);
+      errorBody = 'Unable to read response body';
+    }
+    
+    const errorMessage = `HTTP ${res.status} ${res.statusText}${errorBody ? ` - ${errorBody}` : ''}`;
+    console.error(`🚨 [fetchFromJellyseerr] Request failed: ${errorMessage}`);
+    throw new Error(errorMessage);
   }
 
   // Return the JSON response
-  return { json: (await res.json()) as T, status: res.status, ok: res.ok };
+  let jsonResponse: T;
+  try {
+    jsonResponse = await res.json() as T;
+    console.log(`✅ [fetchFromJellyseerr] Success! Response data:`, JSON.stringify(jsonResponse, null, 2));
+  } catch (parseError) {
+    console.error(`🔧 [fetchFromJellyseerr] JSON parse error:`, parseError);
+    throw new Error(`Failed to parse JSON response: ${parseError}`);
+  }
+
+  const result = { json: jsonResponse, status: res.status, ok: res.ok };
+  console.log(`🎉 [fetchFromJellyseerr] Request completed successfully`);
+  return result;
 }
